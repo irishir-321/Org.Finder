@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+orgs.db-wal
+orgs.db-shm
+*.xlsx
+~$*.xlsx
+run_log.txt

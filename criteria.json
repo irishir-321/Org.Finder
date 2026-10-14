@@ -1,0 +1,87 @@
+{
+  "_comment": "Each criterion: weight (points out of 100) and regex patterns (case-insensitive). Score per criterion = distinct patterns matched, capped at 'saturate'. Edit freely.",
+  "criteria": {
+    "fln": {
+      "label": "Focused on FLN",
+      "weight": 30,
+      "saturate": 3,
+      "patterns": [
+        "foundational literacy",
+        "foundational numeracy",
+        "\\bFLN\\b",
+        "foundational learning",
+        "foundational (stage|years|skills)",
+        "early (grade )?literacy",
+        "early (grade )?(numeracy|math)",
+        "NIPUN",
+        "reading (fluency|comprehension|proficiency)",
+        "learning to read",
+        "basic (reading|arithmetic|numeracy)",
+        "teaching at the right level|\\bTaRL\\b",
+        "remedial (learning|education|program)"
+      ]
+    },
+    "grades": {
+      "label": "Works with students in G1-G8",
+      "weight": 20,
+      "saturate": 3,
+      "patterns": [
+        "\\b(grade|class|std|standard)s?\\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])\\b",
+        "\\b(grades?|class(es)?|std)\\s*[1-8]\\s*(-|to|–)\\s*[1-8]\\b",
+        "primary (school|grade|class|education|level)",
+        "upper primary",
+        "elementary (school|education|grade)",
+        "early grades",
+        "middle school",
+        "children (aged|between) ?(5|6|7|8)",
+        "(6|5)\\s*(-|to|–)\\s*14 years"
+      ]
+    },
+    "tcb": {
+      "label": "Teacher capacity building",
+      "weight": 20,
+      "saturate": 3,
+      "patterns": [
+        "teacher (training|development|capacity|education|professional development|support|coaching|mentoring)",
+        "capacity building",
+        "professional development",
+        "(coach|mentor)(ing|s)? (teachers|educators)",
+        "(training|empowering|upskilling|equipping) (of )?teachers",
+        "school leader(ship)?|head ?teachers?|headmasters?",
+        "academic (support|coordinators?)|cluster resource|CRCC|BRCC|\\bDIETs?\\b|SCERT",
+        "teacher (learning )?communit(y|ies)|communities of practice",
+        "classroom (practice|observation)s?"
+      ]
+    },
+    "network": {
+      "label": "Supports groups of schools / learning centres",
+      "weight": 15,
+      "saturate": 3,
+      "patterns": [
+        "[\\d,]+\\+?\\s*(government )?schools",
+        "network of schools",
+        "partner schools",
+        "government schools",
+        "learning (centres|centers)",
+        "community (learning )?(centres|centers|libraries)",
+        "(across|in) [\\d,]+\\+? (districts|blocks|villages)",
+        "(state|district) governments?|system(s)? (reform|strengthening)",
+        "\\b(foundation|trust|society)\\b",
+        "grants?|grantees?|fund(ing|s|er)"
+      ]
+    },
+    "india": {
+      "label": "Works in India",
+      "weight": 15,
+      "saturate": 2,
+      "patterns": [
+        "\\bIndia(n)?\\b",
+        "Uttar Pradesh|Madhya Pradesh|Maharashtra|Karnataka|Rajasthan|Bihar|Odisha|Jharkhand|Chhattisgarh|Telangana|Andhra Pradesh|Tamil Nadu|Kerala|Gujarat|West Bengal|Assam|Haryana|Punjab|Uttarakhand|Himachal|Delhi|Goa|Tripura|Meghalaya|Manipur|Nagaland|Mizoram|Sikkim|Arunachal|Jammu|Kashmir|Ladakh",
+        "Samagra Shiksha|NEP 2020|\\bNCERT\\b|Ministry of Education",
+        "\\b(rural|tribal|aspirational) (districts?|India|areas)\\b"
+      ]
+    }
+  },
+  "fit_thresholds": { "strong": 65, "possible": 40 },
+  "require_for_strong": ["fln"]
+}

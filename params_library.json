@@ -1,0 +1,175 @@
+{
+  "_comment": "Reusable parameters for the query app (app.py). Each tag: weight (default, user can override in-app), regex 'patterns' (case-insensitive, for scoring already-crawled text), and optional 'search_queries' (literal phrases scraper.py --search sends to Serper to discover new orgs for this tag; omit if none). 'saturate' = number of distinct pattern-hits that maxes out the tag's score. Add new tags/categories here any time — no code changes needed.",
+  "categories": {
+    "focus_fln": {
+      "label": "Focus: Foundational Literacy & Numeracy",
+      "tags": {
+        "fln": {
+          "label": "FLN-focused",
+          "weight": 30, "saturate": 3,
+          "patterns": ["foundational literacy", "foundational numeracy", "\\bFLN\\b", "foundational learning",
+            "foundational (stage|years|skills)", "early (grade )?literacy", "early (grade )?(numeracy|math)",
+            "NIPUN", "reading (fluency|comprehension|proficiency)", "learning to read",
+            "basic (reading|arithmetic|numeracy)", "teaching at the right level|\\bTaRL\\b",
+            "remedial (learning|education|program)"],
+          "search_queries": ["foundational literacy and numeracy NGO India government schools",
+            "FLN programme nonprofit India grades 1-3", "NIPUN Bharat implementation partner NGO",
+            "early grade reading program India nonprofit", "numeracy program primary schools India foundation",
+            "teaching at the right level India NGO"]
+        },
+        "grades": {
+          "label": "Works with G1-G8 students",
+          "weight": 20, "saturate": 3,
+          "patterns": ["\\b(grade|class|std|standard)s?\\s*(I|II|III|IV|V|VI|VII|VIII|[1-8])\\b",
+            "\\b(grades?|class(es)?|std)\\s*[1-8]\\s*(-|to|–)\\s*[1-8]\\b",
+            "primary (school|grade|class|education|level)", "upper primary", "elementary (school|education|grade)",
+            "early grades", "middle school", "children (aged|between) ?(5|6|7|8)", "(6|5)\\s*(-|to|–)\\s*14 years"],
+          "search_queries": ["primary school education NGO India"]
+        },
+        "tcb": {
+          "label": "Teacher capacity building (TCB)",
+          "weight": 20, "saturate": 3,
+          "patterns": ["teacher (training|development|capacity|education|professional development|support|coaching|mentoring)",
+            "capacity building", "professional development", "(coach|mentor)(ing|s)? (teachers|educators)",
+            "(training|empowering|upskilling|equipping) (of )?teachers", "school leader(ship)?|head ?teachers?|headmasters?",
+            "academic (support|coordinators?)|cluster resource|CRCC|BRCC|\\bDIETs?\\b|SCERT",
+            "teacher (learning )?communit(y|ies)|communities of practice", "classroom (practice|observation)s?"],
+          "search_queries": ["teacher capacity building NGO India primary schools",
+            "school leadership development nonprofit India government schools"]
+        },
+        "network": {
+          "label": "Supports a network of schools/centres",
+          "weight": 15, "saturate": 3,
+          "patterns": ["[\\d,]+\\+?\\s*(government )?schools", "network of schools", "partner schools",
+            "government schools", "learning (centres|centers)", "community (learning )?(centres|centers|libraries)",
+            "(across|in) [\\d,]+\\+? (districts|blocks|villages)", "(state|district) governments?|system(s)? (reform|strengthening)"],
+          "search_queries": ["foundation supporting learning centres India children reading",
+            "community learning centres India NGO literacy"]
+        }
+      }
+    },
+    "org_signals": {
+      "label": "Organisation signals",
+      "tags": {
+        "foundation_type": {
+          "label": "Is a foundation/trust/society (not a vendor)",
+          "weight": 10, "saturate": 2,
+          "patterns": ["\\bfoundation\\b", "\\btrust\\b", "\\bsociety\\b", "section ?8 compan(y|ies)", "non-?profit|\\bNGO\\b"]
+        },
+        "funder": {
+          "label": "Acts as a funder/grantmaker",
+          "weight": 10, "saturate": 2,
+          "patterns": ["grants?\\b", "grantees?", "fund(ing|s)? (for|to) (NGOs|organisations|organizations|partners)",
+            "philanthrop", "\\bCSR\\b", "donor", "request for proposals?|\\bRFP\\b"]
+        },
+        "govt_partner": {
+          "label": "Partners with state/district government",
+          "weight": 10, "saturate": 2,
+          "patterns": ["state government", "district government", "ministry of education", "department of (school )?education",
+            "samagra shiksha", "MoU with (the )?government", "government of (india|[a-z]+ pradesh|[a-z]+)"]
+        },
+        "assessment": {
+          "label": "Does learning assessment / research",
+          "weight": 8, "saturate": 2,
+          "patterns": ["learning assessment", "\\bASER\\b", "randomi[sz]ed (control(led)? )?trial", "impact (evaluation|study)",
+            "research (study|paper|report)", "baseline|endline survey"]
+        }
+      }
+    },
+    "org_scale": {
+      "label": "Organisation scale (approximate - verify against the evidence snippet, these rarely state exact figures)",
+      "tags": {
+        "team_size_signal": {
+          "label": "States a team size (checking for roughly 6-20 people)",
+          "weight": 10, "saturate": 1,
+          "patterns": ["team of (6|7|8|9|1[0-9]|20)\\b", "staff of (6|7|8|9|1[0-9]|20)\\b",
+            "(6|7|8|9|1[0-9]|20)[- ]member team", "(6|7|8|9|1[0-9]|20)\\s*(employees|staff members|team members)\\b"]
+        },
+        "budget_disclosed": {
+          "label": "Discloses budget/financial scale",
+          "weight": 10, "saturate": 1,
+          "patterns": ["annual budget", "operating budget", "(₹|rs\\.?|inr)\\s?[\\d,.]+\\s?(crore|cr\\b|lakh)",
+            "annual (turnover|revenue)", "audited (financial|accounts)", "financial statements"]
+        }
+      }
+    },
+    "org_capability": {
+      "label": "Internal capability",
+      "tags": {
+        "program_design_team": {
+          "label": "Has an internal program/curriculum design team",
+          "weight": 12, "saturate": 2,
+          "patterns": ["in-house (content|curriculum|program) (design|development)", "program design team",
+            "curriculum design team", "instructional design(ers)?", "content development team",
+            "(research and development|R&D) team"],
+          "search_queries": ["curriculum design NGO India in-house content team"]
+        },
+        "reach_impact": {
+          "label": "Reports reach / impact at scale",
+          "weight": 15, "saturate": 2,
+          "patterns": ["reached (over|more than)? ?[\\d,]+\\+? (children|students|teachers|schools)",
+            "impact(ed)? [\\d,]+\\+? (children|students)", "annual (impact|outcomes) report",
+            "impact (assessment|evaluation|study)",
+            "[\\d,]+\\+? (children|students|teachers) (impacted|reached|benefit(t)?ed)"],
+          "search_queries": ["annual impact report NGO India education reach"]
+        }
+      }
+    }
+  },
+  "facets": {
+    "state": {
+      "label": "State / UT mentioned",
+      "values": {
+        "Andhra Pradesh": "Andhra Pradesh", "Arunachal Pradesh": "Arunachal Pradesh", "Assam": "\\bAssam\\b",
+        "Bihar": "\\bBihar\\b", "Chhattisgarh": "Chhattisgarh", "Delhi": "\\bDelhi\\b", "Goa": "\\bGoa\\b",
+        "Gujarat": "Gujarat", "Haryana": "Haryana", "Himachal Pradesh": "Himachal Pradesh",
+        "Jharkhand": "Jharkhand", "Karnataka": "Karnataka", "Kerala": "\\bKerala\\b",
+        "Madhya Pradesh": "Madhya Pradesh", "Maharashtra": "Maharashtra", "Odisha": "Odisha",
+        "Punjab": "\\bPunjab\\b", "Rajasthan": "Rajasthan", "Tamil Nadu": "Tamil Nadu",
+        "Telangana": "Telangana", "Uttar Pradesh": "Uttar Pradesh", "Uttarakhand": "Uttarakhand",
+        "West Bengal": "West Bengal", "Jammu and Kashmir": "Jammu (and|&) Kashmir"
+      }
+    },
+    "org_type": {
+      "label": "Organisation type",
+      "values": {
+        "Foundation": "\\bfoundation\\b",
+        "Trust": "\\btrust\\b",
+        "Society": "\\bsociety\\b",
+        "Section 8 / Nonprofit": "section ?8 compan|non-?profit|\\bNGO\\b",
+        "For-profit / vendor": "pvt\\.? ltd|private limited|\\bLLP\\b|\\(?india\\)? limited"
+      }
+    },
+    "geo_scope": {
+      "label": "Geographic scope",
+      "values": {
+        "Pan-India": "pan[- ]?india|across india|nationwide|all (states|UTs)|india[- ]wide"
+      }
+    },
+    "area_type": {
+      "label": "Area of operation",
+      "values": {
+        "Rural": "\\brural\\b|\\bvillages?\\b",
+        "Semi-urban": "semi[- ]urban",
+        "Tier 1 cities": "tier[- ]?1 cit(y|ies)|metro(politan)? cit(y|ies)",
+        "Tier 2 cities": "tier[- ]?2 cit(y|ies)"
+      }
+    },
+    "org_age": {
+      "_comment": "Year ranges are relative to 2026 - shift these forward in future years (e.g. in 2028, 'under 5' becomes 2023-2028, '5-10' becomes 2018-2022, etc.)",
+      "label": "Years of existence",
+      "values": {
+        "Under 5 years": "(founded|established|incorporated|since)[^.]{0,15}\\b202[1-6]\\b",
+        "5-10 years": "(founded|established|incorporated|since)[^.]{0,15}\\b(201[6-9]|2020)\\b",
+        "Over 10 years": "(founded|established|incorporated|since)[^.]{0,15}\\b(19[5-9]\\d|200\\d|201[0-5])\\b"
+      }
+    },
+    "delivery_mode": {
+      "label": "Delivery mode / connectivity needs (best guess at 'internet connectivity' - relabel/edit if you meant something else, e.g. the org's own office connectivity)",
+      "values": {
+        "Digital / EdTech-enabled": "online (platform|learning|classes)|e-learning|mobile app|digital content|app-based",
+        "Offline / low-connectivity friendly": "offline (mode|delivery)|without (internet|connectivity)|low[- ]tech|print(ed)? materials|no internet required"
+      }
+    }
+  }
+}
