@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS orgs (
     pages_json   TEXT,   -- JSON list of [url, text]
     source       TEXT,   -- how first discovered (seed / search:.. / linked from ...)
     linked_by    TEXT,   -- JSON list of org names that link to this one
+    outbound     TEXT,   -- JSON list of domains this org links out to (partner/network pages) -
+                         -- lets a FUTURE run snowball from this org again without re-crawling it
     error        TEXT,
     first_seen   TEXT,
     last_crawled TEXT
@@ -41,6 +43,11 @@ def open_db(path=DB_PATH_DEFAULT):
     con = sqlite3.connect(path)
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
+    try:  # migration for databases created before the 'outbound' column existed
+        con.execute("ALTER TABLE orgs ADD COLUMN outbound TEXT")
+        con.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
     return con
 
 
@@ -55,24 +62,25 @@ def connect(path=DB_PATH_DEFAULT):
 
 
 def upsert_org(con, org: dict):
-    """org keys: domain,url,name,title,description,emails,phones,pages,source,linked_by,error,now"""
+    """org keys: domain,url,name,title,description,emails,phones,pages,source,linked_by,outbound,error,now"""
     existing = con.execute("SELECT first_seen, pages_json FROM orgs WHERE domain=?", (org["domain"],)).fetchone()
     first_seen = existing[0] if existing else org["now"]
     # if this crawl errored but we have older good data, keep the old pages instead of wiping them
     pages_json = json.dumps(org["pages"]) if (org["pages"] or not existing) else existing[1]
     con.execute("""
-        INSERT INTO orgs (domain,url,name,title,description,emails,phones,pages_json,source,linked_by,error,
-                           first_seen,last_crawled)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        INSERT INTO orgs (domain,url,name,title,description,emails,phones,pages_json,source,linked_by,
+                           outbound,error,first_seen,last_crawled)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(domain) DO UPDATE SET
             url=excluded.url, name=CASE WHEN excluded.name!='' THEN excluded.name ELSE orgs.name END,
             title=excluded.title, description=excluded.description,
             emails=excluded.emails, phones=excluded.phones,
             pages_json=excluded.pages_json, source=excluded.source, linked_by=excluded.linked_by,
-            error=excluded.error, last_crawled=excluded.last_crawled
+            outbound=excluded.outbound, error=excluded.error, last_crawled=excluded.last_crawled
     """, (org["domain"], org["url"], org["name"], org["title"], org["description"],
           json.dumps(sorted(org["emails"])), json.dumps(sorted(org["phones"])),
-          pages_json, org["source"], json.dumps(sorted(org["linked_by"])), org["error"],
+          pages_json, org["source"], json.dumps(sorted(org["linked_by"])),
+          json.dumps(sorted(org.get("outbound", []))), org["error"],
           first_seen, org["now"]))
 
 
@@ -82,7 +90,7 @@ def all_domains(con):
 
 def fetch_all(con):
     cols = ["domain", "url", "name", "title", "description", "emails", "phones",
-            "pages_json", "source", "linked_by", "error", "first_seen", "last_crawled"]
+            "pages_json", "source", "linked_by", "outbound", "error", "first_seen", "last_crawled"]
     rows = con.execute(f"SELECT {','.join(cols)} FROM orgs").fetchall()
     out = []
     for r in rows:
@@ -91,6 +99,7 @@ def fetch_all(con):
         d["phones"] = json.loads(d["phones"] or "[]")
         d["pages"] = json.loads(d["pages_json"] or "[]")
         d["linked_by"] = json.loads(d["linked_by"] or "[]")
+        d["outbound"] = json.loads(d["outbound"] or "[]")
         del d["pages_json"]
         out.append(d)
     return out

@@ -75,10 +75,19 @@ with it — ask and we can set that up.
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-To use `--search`, set your key first (PowerShell):
-```
-$env:SERPER_API_KEY = "your_key_here"
-```
+To use `--search`, give it your key one of two ways:
+
+- **`.env` file (recommended)** — copy `.env.example` to `.env` and put your real key in it:
+  ```
+  copy .env.example .env
+  notepad .env
+  ```
+  `.env` is in `.gitignore` — it never gets committed or uploaded, stays only on your machine.
+- **OS environment variable** (PowerShell):
+  ```
+  $env:SERPER_API_KEY = "your_key_here"
+  ```
+  An actual environment variable always takes priority over `.env` if both are set.
 
 ## Customise
 

@@ -13,8 +13,10 @@ Discovery:
   1. seeds.csv            - organisations you already know of
   2. snowballing          - organisations linked from seeds' partner/network pages
   3. web search (optional)- set SERPER_API_KEY (free: 2,500 one-time queries, https://serper.dev),
-                             then pass --search. Query phrases come from params_library.json's
-                             per-tag 'search_queries' lists, not a hardcoded list.
+                             either as a real OS environment variable or in a local ".env" file
+                             (copy .env.example -> .env and fill in your key; .env is gitignored,
+                             never committed), then pass --search. Query phrases come from
+                             params_library.json's per-tag 'search_queries' lists, not hardcoded.
 
 Anything already in orgs.db is never re-crawled (pass --retry-errors to retry past failures only).
 
@@ -43,6 +45,22 @@ from urllib.robotparser import RobotFileParser
 import db as orgdb  # noqa: E402
 
 warnings.filterwarnings("ignore")
+
+
+def load_dotenv(path):
+    """Minimal .env reader (KEY=VALUE per line, '#' comments) - no new dependency needed.
+    Only fills in variables not already set in the real environment, so an actual OS env var
+    always wins over the file."""
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
 import requests  # noqa: E402
 from bs4 import BeautifulSoup  # noqa: E402
 from openpyxl import Workbook  # noqa: E402
@@ -118,15 +136,34 @@ def session() -> requests.Session:
     return _session_local.s
 
 
+MAX_PAGE_BYTES = 3 * 1024 * 1024  # 3MB - generous for any normal org page; guards against huge/
+                                   # pathological responses (e.g. a bloated SPA bundle) that would
+                                   # otherwise take a very long time to download and parse
+
+
 def fetch(url: str):
-    """Return (final_url, html) or raise."""
-    r = session().get(url, timeout=TIMEOUT, allow_redirects=True)
-    r.raise_for_status()
-    ctype = r.headers.get("content-type", "")
-    if "html" not in ctype and "xml" not in ctype and ctype:
-        raise ValueError(f"not html ({ctype})")
+    """Return (final_url, html) or raise. Streams with a hard size cap - a Content-Length lie or
+    a missing one (chunked transfer) can't bypass it, since we also check actual bytes read."""
+    r = session().get(url, timeout=TIMEOUT, allow_redirects=True, stream=True)
+    try:
+        r.raise_for_status()
+        ctype = r.headers.get("content-type", "")
+        if "html" not in ctype and "xml" not in ctype and ctype:
+            raise ValueError(f"not html ({ctype})")
+        clen = r.headers.get("content-length")
+        if clen and int(clen) > MAX_PAGE_BYTES:
+            raise ValueError(f"page too large ({int(clen) / 1e6:.1f} MB, skipped)")
+        chunks, total = [], 0
+        for chunk in r.iter_content(chunk_size=65536):
+            total += len(chunk)
+            if total > MAX_PAGE_BYTES:
+                raise ValueError(f"page too large (>{MAX_PAGE_BYTES / 1e6:.0f} MB, skipped)")
+            chunks.append(chunk)
+    finally:
+        r.close()
+    raw = b"".join(chunks)
     enc = r.encoding if r.encoding and r.encoding.lower() not in ("iso-8859-1", "ascii") else "utf-8"
-    return r.url, r.content.decode(enc, errors="replace")
+    return r.url, raw.decode(enc, errors="replace")
 
 
 def robots_ok(base: str) -> RobotFileParser | None:
@@ -196,6 +233,15 @@ def score_pages(pages, crits, thresholds, required):
     else:
         fit = "Weak"
     return total, fit, out
+
+
+def is_good_linker(fit, results):
+    """Worth snowballing from: 'Strong' only. Tried loosening this to 'Possible + explicit India
+    relevance' and it backfired immediately - international private schools' admissions/curriculum
+    pages mention India/Indian students casually without being Indian orgs at all, and easily clear
+    a weak "mentions India twice" bar. Reverted. If this needs loosening again, it needs a stronger
+    India signal than the existing criterion, not just a lower fit threshold."""
+    return fit == "Strong"
 
 
 # ---------------------------------------------------------------- crawling
@@ -393,8 +439,10 @@ def main():
     ap.add_argument("--criteria", default=os.path.join(HERE, "criteria.json"))
     ap.add_argument("--depth", type=int, default=1, help="snowball levels beyond seeds (0 = seeds only)")
     ap.add_argument("--max-orgs", type=int, default=250, help="cap on total organisations crawled")
-    ap.add_argument("--min-links", type=int, default=1,
-                    help="only snowball to orgs linked by at least this many crawled orgs")
+    ap.add_argument("--min-links", type=int, default=2,
+                    help="only snowball to orgs linked by at least this many Strong, India-relevant "
+                         "crawled orgs (raised from 1 to 2 by default to cut down on noise from "
+                         "one-off mentions on a single org's partner/funder page)")
     ap.add_argument("--max-pages", type=int, default=8, help="pages read per website")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--delay", type=float, default=0.5, help="seconds between requests to the same site")
@@ -408,8 +456,13 @@ def main():
     ap.add_argument("--retry-errors", action="store_true",
                     help="also re-crawl domains already in the database that previously errored "
                          "(by default, anything already in the database is never re-crawled)")
+    ap.add_argument("--refresh-strong", action="store_true",
+                    help="also re-crawl domains already in the database that currently score "
+                         "'Strong' - one-time backfill for orgs crawled before outbound-link "
+                         "persistence existed, so they can act as re-snowball sources from now on")
     a = ap.parse_args()
 
+    load_dotenv(os.path.join(HERE, ".env"))
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     crits, thresholds, required = load_criteria(a.criteria)
     orgs: dict[str, Org] = {}
@@ -440,12 +493,51 @@ def main():
     if a.retry_errors and db_con is not None:
         errored = {r[0] for r in db_con.execute("SELECT domain FROM orgs WHERE error != ''")}
         known -= errored
+    if a.refresh_strong and db_con is not None:
+        n_added = 0
+        for row in orgdb.fetch_all(db_con):
+            if row["error"] or row["outbound"]:  # skip ones that already have outbound saved
+                continue
+            _, fit, results = score_pages(row["pages"], crits, thresholds, required)
+            if is_good_linker(fit, results):
+                known.discard(row["domain"])  # un-skip it
+                orgs[row["domain"]] = Org(domain=row["domain"], url=row["url"],
+                                          name=row["name"], source="refresh-strong")
+                n_added += 1
+        print(f"--refresh-strong: {n_added} good-linker organisation(s) without saved outbound links "
+              f"queued for re-crawl")
     if known:
         skip = [d for d in orgs if d in known]
         for d in skip:
             del orgs[d]
         print(f"Skipping {len(skip)} organisation(s) already in the database "
               f"(pass --retry-errors to retry ones that previously failed)")
+
+    # Re-snowball from ALL historically-Strong orgs already in the database, not just whatever
+    # this run happens to crawl fresh - otherwise each run's snowball power is capped at its own
+    # tiny new batch, ignoring the growing network of good orgs found in every earlier run.
+    if db_con is not None:
+        hist_candidates: dict[str, set[str]] = {}
+        for row in orgdb.fetch_all(db_con):
+            if row["error"] or not row["outbound"]:
+                continue
+            total, fit, results = score_pages(row["pages"], crits, thresholds, required)
+            if not is_good_linker(fit, results):
+                continue
+            linker_name = row["name"] or row["domain"]
+            for d in row["outbound"]:
+                if d in known or d in orgs:
+                    continue
+                hist_candidates.setdefault(d, set()).add(linker_name)
+        added = 0
+        for d, linkers in hist_candidates.items():
+            if len(linkers) >= a.min_links:
+                c = Org(domain=d, url=f"https://{d}", source=f"linked from {len(linkers)} existing Strong org(s)")
+                c.linked_by = linkers
+                orgs[d] = c
+                added += 1
+        if added:
+            print(f"Re-snowballing from existing Strong organisations found {added} new candidate(s)")
 
     crawled: set[str] = set()
     frontier = list(orgs.values())
@@ -471,14 +563,20 @@ def main():
                     orgdb.upsert_org(db_con, {
                         "domain": o.domain, "url": o.url, "name": o.name, "title": o.title,
                         "description": o.description, "emails": o.emails, "phones": o.phones,
-                        "pages": o.pages, "source": o.source, "linked_by": o.linked_by, "error": o.error,
+                        "pages": o.pages, "source": o.source, "linked_by": o.linked_by,
+                        "outbound": o.outbound, "error": o.error,
                         "now": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                     })
+                    db_con.commit()  # durable immediately - a stall/crash/kill mid-run must not lose
+                                     # already-crawled organisations (previously only committed at the
+                                     # very end, so an interrupted run lost ALL of its progress)
 
         if level == a.depth:
             break
-        # snowball: candidates linked from orgs that scored at least "possible"
-        linkers = [o for o in frontier if not o.error and o.total >= thresholds["possible"]]
+        # snowball: from "Strong" orgs, or "Possible" orgs that explicitly show India relevance
+        # (see is_good_linker) - snowballing from a merely "Possible" org with NO India signal at
+        # all previously let through global/international orgs unrelated to India entirely
+        linkers = [o for o in frontier if not o.error and is_good_linker(o.fit, o.results)]
         cand: dict[str, Org] = {}
         for o in linkers:
             for d in o.outbound:

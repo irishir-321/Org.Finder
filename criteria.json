@@ -76,12 +76,12 @@
       "saturate": 2,
       "patterns": [
         "\\bIndia(n)?\\b",
-        "Uttar Pradesh|Madhya Pradesh|Maharashtra|Karnataka|Rajasthan|Bihar|Odisha|Jharkhand|Chhattisgarh|Telangana|Andhra Pradesh|Tamil Nadu|Kerala|Gujarat|West Bengal|Assam|Haryana|Punjab|Uttarakhand|Himachal|Delhi|Goa|Tripura|Meghalaya|Manipur|Nagaland|Mizoram|Sikkim|Arunachal|Jammu|Kashmir|Ladakh",
+        "Uttar Pradesh|Madhya Pradesh|Maharashtra|Karnataka|Rajasthan|Bihar|Odisha|Jharkhand|Chhattisgarh|Telangana|Andhra Pradesh|Tamil Nadu|Kerala|Gujarat|West Bengal|Assam|Haryana|Punjab|Uttarakhand|Himachal|Delhi|(?-i:Goa)|Tripura|Meghalaya|Manipur|Nagaland|Mizoram|Sikkim|Arunachal|Jammu|Kashmir|Ladakh",
         "Samagra Shiksha|NEP 2020|\\bNCERT\\b|Ministry of Education",
         "\\b(rural|tribal|aspirational) (districts?|India|areas)\\b"
       ]
     }
   },
   "fit_thresholds": { "strong": 65, "possible": 40 },
-  "require_for_strong": ["fln"]
+  "require_for_strong": ["fln", "india"]
 }
